@@ -1,0 +1,23 @@
+{
+	"name": "v-endereco",
+	"description": "v-endereco",
+	"organization": "v-endereco",
+	"version": "1.0.0",
+	"private": true,
+	"main": "dist/index.js",
+	"authors": [
+		"Developer #1 <developer1@mail.com>"
+	],
+	"dependencies": {
+		"vue": "^2.5.13",
+		"vue-the-mask": "^0.11.1",
+		"vue-typeahead": "^2.3.2"
+	},
+	"devDependencies": {
+		"eslint": "^3.19.0",
+		"eslint-loader": "^1.7.1",
+		"eslint-plugin-vue": "^2.0.1",
+		"vue-loader": "^12.2.1",
+		"vue-template-compiler": "^2.5.13"
+	}
+}
