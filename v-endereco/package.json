@@ -4,14 +4,13 @@
 	"organization": "v-endereco",
 	"version": "1.0.0",
 	"private": true,
-	"main": "dist/index.js",
+	"main": "dist/main.js",
 	"authors": [
 		"Developer #1 <developer1@mail.com>"
 	],
 	"dependencies": {
 		"vue": "^2.5.13",
-		"vue-the-mask": "^0.11.1",
-		"vue-typeahead": "^2.3.2"
+		"vue-the-mask": "^0.11.1"
 	},
 	"devDependencies": {
 		"eslint": "^3.19.0",

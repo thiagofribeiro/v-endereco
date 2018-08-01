@@ -2,29 +2,31 @@
 	<div>
 		<div class="row">
 			<div :class="colsize.cep">
-				<div class="form-group">
-					<label for="cep">CEP:</label>
+				<div :class="`form-group ${hasErrors(validations.cep)}`">
+					<label class="control-label" for="cep">CEP:</label>
 					<div class="input-group">
 						<input type="text" class="form-control" id="cep" v-model="endereco.cep" placeholder="" v-mask="'#####-###'">
 						<span class="input-group-btn">
-        					<button class="btn btn-default" type="button" @click="limparDados"><b>&times;</b></button>
-      					</span>
+        					<button class="btn btn-default input-button" type="button" @click="limparDados"><b>&times;</b></button>
+      					</span> 
     				</div><!-- /input-group -->
+					 <span class="help-block">{{errorMessage(validations.cep)}}</span>
 				</div>
 			</div>
 			<div :class="colsize.uf">
-				<div class="form-group">
-					<label for="cep">UF:</label>
-					<select class="form-control" :disabled="endereco.idCep || localidadeFixa" v-model="endereco.ufSigla">
+				<div :class="`form-group ${hasErrors(validations.ufSigla)}`">
+					<label class="control-label" for="ufSigla">UF:</label>
+					<select class="form-control" id="ufSigla" :disabled="endereco.idCep || localidadeFixa" v-model="endereco.ufSigla">
 						<option :value="null">-- Selecione --</option>
 						<option v-for="uf in ufs" :key="uf.ufSigla" :value="uf.ufSigla">{{uf.ufSigla}}{{!['md', 'sm'].includes(size) ? ` - ${uf.ufNome}` : ''}}</option>
 					</select>
+					 <span class="help-block">{{errorMessage(validations.ufSigla)}}</span>
 				</div>
 			</div>
 
 			<div :class="colsize.localidade">
-				<div class="form-group">
-					<label for="cep">Localidade:</label>
+				<div :class="`form-group ${hasErrors(validations.idLocalidade)}`">
+					<label class="control-label" for="cep">Localidade:</label>
 					<select v-if="localidades.length > 0" class="form-control" :disabled="endereco.idCep || localidadeFixa" v-model="endereco.idLocalidade" >
 						<option :value="null" selected>-- Selecione uma localidade --</option>
 						<option v-for="l in localidades" :key="l.idLocalidade" :value="l.idLocalidade" :selected="l.idLocalidade == endereco.idLocalidade">{{l.localidade}}</option>
@@ -35,49 +37,87 @@
 					<select v-else class="form-control" :disabled="true">
 						<option :value="null" selected="true">-- Selecione uma unidade federativa --</option>
 					</select>
+					 <span class="help-block">{{errorMessage(validations.idLocalidade)}}</span>
 				</div>
 			</div>
 		</div>
 		<div class="row">
 			<div :class="colsize.logradouro">
-				<div class="form-group">
-					<label for="logradouro">Logradouro:</label>
-					<logradouro v-model="logradouro" @hit="logradouroSelecionado" :disabled="endereco.idCep" :localidade="endereco.localidade" />
-				</div>
-			</div>
-
-			<div :class="colsize.numero">
-				<div class="form-group">
-					<label for="cep">Número:</label>
-					<input class="form-control" id="cep" v-model="endereco.numero">
-				</div>
-			</div>
-
-			<div :class="colsize.complemento">
-				<div class="form-group">
-					<label for="cep">Complemento:</label>
-					<input class="form-control" id="cep" v-model="endereco.complemento">
+				<div :class="`form-group ${hasErrors(validations.logradouro)}`">
+					<label class="control-label" for="logradouro">Logradouro:</label>
+					<v-logradouro 
+						v-model="logradouro" 
+						@hit="logradouroSelecionado" 
+						:disabled="endereco.idCep" 
+						:localidade="endereco.localidade" 
+						:ufSigla="endereco.ufSigla"  
+						:src="elasticSearchUrl"
+					/>
+					<span class="help-block">{{errorMessage(validations.logradouro)}}</span>
 				</div>
 			</div>
 
 			<div :class="colsize.bairro">
-				<div class="form-group">
-					<label for="cep">Bairro:</label>
+				<div :class="`form-group ${hasErrors(validations.bairro)}`">
+					<label class="control-label" for="cep">Bairro:</label>
 					<input class="form-control" id="cep" v-model="endereco.bairro" :disabled="endereco.idCep">
+					<span class="help-block">{{errorMessage(validations.bairro)}}</span>
 				</div>
 			</div>
+
+			<div :class="colsize.numero">
+				<div :class="`form-group ${hasErrors(validations.numero)}`">
+					<label class="control-label" for="cep">Número:</label>
+					<input class="form-control" id="cep" v-model="endereco.numero">
+					<span class="help-block">{{errorMessage(validations.numero)}}</span>
+				</div>
+			</div>
+
+			<div :class="colsize.complemento">
+				<div :class="`form-group ${hasErrors(validations.complemento)}`">
+					<label class="control-label" for="cep">Complemento:</label>
+					<input class="form-control" id="cep" v-model="endereco.complemento">
+					<span class="help-block">{{errorMessage(validations.complemento)}}</span>
+				</div>
+			</div>
+
 		</div>
+		<pre v-if="debug">{{endereco}}</pre>
 	</div>
 </template>
 
 <script>
-	import Logradouro from './logradouro.vue';
+	import VLogradouro from './logradouro.vue';
 	import {mask} from 'vue-the-mask';
-
-	let count = 0;
+	let defaultErrorMessage = 'Erro no campo';
+	let extractErrorMessage = validation => {
+		if (validation && validation.$invalid) {
+			for (let key in validation) {
+				if (key[0] !== '$') {
+					if (validation[key] === false) {
+						let errorMessage = validation.$params && validation.$params[key] && validation.$params[key].errorMessage;
+	
+						if (errorMessage) {
+							if (typeof errorMessage === 'string') {
+								return errorMessage;
+							} else {
+								return errorMessage(validation.$params[key]);
+							}
+						} else {
+							return defaultErrorMessage;
+						}
+					}
+				}
+			}
+	
+			return defaultErrorMessage;
+		} else {
+			return null;
+		}
+	};
 
 	export default {
-		components: {Logradouro},
+		components: {VLogradouro},
 		directives: {mask},
 
 		props: {
@@ -87,9 +127,17 @@
 			comdataUrl: {
 				default: 'https://api.sorocaba.sp.gov.br/COMDATA/endereco'
 			},
+			elasticSearchUrl: {
+				default: 'https://api.sorocaba.sp.gov.br/elasticsearch/endereco/_search'
+			},
 			size: {
 				default: 'lg'
 			},
+			debug: {
+				default: false
+			},
+			validations: {type: Object, default: () => ({})}
+			
 		},
 
 		data() {
@@ -117,7 +165,7 @@
 			},
 
 			colsize() {
-				if (this.size==="lg") {
+				if (this.size==='lg') {
 					return {
 						cep: 'col-md-3',
 						uf:  'col-md-2',
@@ -126,7 +174,7 @@
 						numero: 'col-md-1',
 						complemento: 'col-md-2',
 						bairro: 'col-md-4',
-					}
+					};
 				} else if (this.size === 'md') {
 					return {
 						cep: 'col-md-4',
@@ -136,7 +184,7 @@
 						numero: 'col-md-6',
 						complemento: 'col-md-6',
 						bairro: 'col-md-6',
-					}
+					};
 				} else if (this.size === 'sm') {
 					return {
 						cep: 'col-md-8',
@@ -146,7 +194,7 @@
 						numero: 'col-md-6',
 						complemento: 'col-md-6',
 						bairro: 'col-md-12',
-					}
+					};
 				} else if (this.size === 'xs') {
 					return {
 						cep: 'col-md-12',
@@ -156,9 +204,9 @@
 						numero: 'col-md-12',
 						complemento: 'col-md-12',
 						bairro: 'col-md-12',
-					}
+					};
 				}
-			}
+			},
 		},
 
 		watch: {
@@ -178,15 +226,15 @@
 			'endereco.cep': 'consultaCep',
 			'endereco.idCep'(idCep) {
 				if (idCep) {
-					this.endereco.cep = idCep; 	
+					this.endereco.cep = idCep.toString().padStart(8, '0'); 	
 				}
 			},
 
-			'endereco.ufSigla'(ufSigla) {
+			'endereco.ufSigla'() {
 				this.listarLocalidades();
 			},
 
-			'endereco.idLocalidade'(idLocalidade, old) {
+			'endereco.idLocalidade'(idLocalidade) {
 				if(idLocalidade) {
 					let localidade = this.localidades.find((l) => l.idLocalidade === idLocalidade);
 					if (localidade && localidade.localidade) {
@@ -201,9 +249,11 @@
 			
 			'endereco.localidade'(localidade) {
 				if (localidade && !this.endereco.idLocalidade) {
-					this.endereco.idLocalidade = localidades.find((l) => l.localidade === this.endereco.localidade).idLocalidade;
+					this.endereco.idLocalidade = this.localidades.find((l) => l.localidade === this.endereco.localidade).idLocalidade;
 				}
-			}
+			},
+
+			
 		},
 
 		mounted() {
@@ -216,7 +266,7 @@
 					.then((ufs) => {
 						if (ufs && ufs.length > 0) {
 							this.ufs = ufs;
-							this.listarLocalidades()
+							this.listarLocalidades();
 						} 
 					});
 			},
@@ -250,7 +300,7 @@
 			},
 
 			logradouroSelecionado(logradouro) {
-				this.endereco.cep = logradouro.idCep;
+				this.endereco.cep = logradouro.idCep.toString().padStart(8, '0');
 			},
 			
 			limparCEP() {
@@ -290,11 +340,11 @@
 				cep = cep && cep.toString().replace('-', '');
 				old = old && old.toString().replace('-', '');
 				if (cep && cep !== old && cep.length === 8) {
-					fetch(`${this.comdataUrl}/pesquisarPorCep?cep=${cep}`)
-						.then((res) => res && res.ok? res.json() : null)
+					fetch(`${this.comdataUrl}/pesquisarPorCep?cep=${cep}`).then((res) => res && res.ok? res.json() : null)
 						.then((endereco) => {
 							if (endereco && endereco.length > 0) {
 								let enderecoNormalizado = endereco[0];
+
 								this.endereco = Object.assign({}, this.endereco, enderecoNormalizado);
 							} else {
 								this.endereco.idCep = null;
@@ -302,10 +352,19 @@
 						});
 				} else if(!cep) {
 					this.endereco = this.enderecoVazio({numero: this.endereco.numero, complemento: this.endereco.complemento });
-				} else if(cep.length !== 8){
+				} else if(cep.length !== 8) {
 					this.endereco.idCep = null;
 				}
+			},
+
+			hasErrors(validation) {
+				return validation && validation.$error ? 'has-error' : '';
+			},
+
+			errorMessage(validation) {
+				return validation && validation.$error ? extractErrorMessage(validation) : '';
 			}
+
 		}
 	};
 </script>

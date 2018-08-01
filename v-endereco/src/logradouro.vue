@@ -1,10 +1,5 @@
 <template>
 	<div class="Typeahead">
-		<i class="fa fa-spinner fa-spin" v-if="loading"></i>
-		<template>
-			<i class="fa fa-search" v-show="isEmpty"></i>
-			<i class="fa fa-times" v-show="isDirty" @click="reset"></i>
-		</template>
 		<input 
 			type="text"
 			class="Typeahead__input form-control"
@@ -22,8 +17,8 @@
 		<ul v-show="hasItems">
 			<li v-for="(item, $item) in items" :key="$item" :class="activeClass($item)" @mousedown="hit" @mousemove="setActive($item)">
 				<div class="first-line" v-html="highlighting(`${item.tipoLogradouro} ${item.logradouro}`)"></div>
+				<div class="second-line pull-right">{{item.localidade}}/{{item.ufSigla}}</div>
 				<div class="second-line">{{detalhes(item)}}</div>
-				<!-- <pre>{{item}}</pre> -->
 			</li>
 		</ul>
 	</div>
@@ -32,26 +27,20 @@
 
 
 <script>
-import VueTypeahead from './vue-typeahead'
+import VueTypeahead from './vue-typeahead';
 export default {
 	extends: VueTypeahead,
 
-	props: ['value', 'disabled', 'localidade'],
+	props: ['value', 'disabled', 'localidade', 'ufSigla', 'src'],
 
 	data () {
 		return {
-			src: 'https://api.sorocaba.sp.gov.br/COMDATA/endereco/pesquisarPorCepOuLogradouroFuzzy',
 			limit: 20,
 			minChars: 3,
-			params: {
-				localidade: this.localidade
-			},
-			queryParamName: 'logradouro',
 			query: null
-		}
+		};
 	},
-
-
+	
 	computed: {
 		valor: {
 			get() {
@@ -113,40 +102,38 @@ export default {
 				detalhes += ` - Número: Até ${item.cepNumeroInicial}`;
 			}
 			
-			return detalhes 
+			return detalhes; 
 		},
+
+		parse(data) {
+			if (data && data.hits && data.hits.hits) {
+				return data.hits.hits.map(a => {
+					let src = a._source;
+
+					return {
+						tipoLogradouro: src.TIPO_LOGRADOURO,
+						logradouro: src.LOGRADOURO,
+						bairro: src.BAIRRO,
+						cep: src.CEP,
+						cepLado: src.CEP_LADO,
+						cepNumeroFinal: src.CEP_NUMERO_FINAL,
+						cepNumeroInicial: src.CEP_NUMERO_INICIAL,
+						idCep: src.ID_CEP,
+						localidade: src.LOCALIDADE,
+						ufSigla: src.UF_SIGLA
+					};
+				});
+			} else {
+				return [];
+			}
+		}
 	}
-}
+};
 </script>
 
 
 
 <style scoped>
-/* .Typeahead {
-	position: relative;
-}
-.Typeahead__input {
-	width: 100%;
-	font-size: 14px;
-	color: #2c3e50;
-	line-height: 1.42857143;
-	box-shadow: inset 0 1px 4px rgba(0,0,0,.4);
-	-webkit-transition: border-color ease-in-out .15s,-webkit-box-shadow ease-in-out .15s;
-	transition: border-color ease-in-out .15s,box-shadow ease-in-out .15s;
-	font-weight: 300;
-	padding: 12px 26px;
-	border: none;
-	border-radius: 22px;
-	letter-spacing: 1px;
-	box-sizing: border-box;
-}
-.Typeahead__input:focus {
-	border-color: #4fc08d;
-	outline: 0;
-	box-shadow: inset 0 1px 1px rgba(0,0,0,.075),0 0 8px #4fc08d;
-}
-*/
-
 ul {
 	position: absolute;
 	padding: 0;
@@ -159,7 +146,7 @@ ul {
 	z-index: 1000;
 }
 li {
-	padding: 10px 16px;
+	padding: 4px 9px;
 	border-bottom: 1px solid #ccc;
 	cursor: pointer;
 }

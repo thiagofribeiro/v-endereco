@@ -7,8 +7,7 @@ export default {
 			current: -1,
 			loading: false,
 			selectFirst: false,
-			queryParamName: 'q',
-			params: 'q'
+			queryParamName: 'q'
 		};
 	},
 
@@ -44,7 +43,7 @@ export default {
 				.then((response) => {
 					if (response && this.query) {
 						let data = this.prepareResponseData ? this.prepareResponseData(response) : response;
-						this.items = this.limit ? data.slice(0, this.limit) : data;
+						this.items = this.parse(data);
 						this.current = -1;
 						this.loading = false;
 
@@ -55,19 +54,46 @@ export default {
 				});
 		},
 
-		fetch () {
-
+		fetch (fuzzy = true) {
+			this.query = this.query.trim();
 			if (!this.src) {
 				return console.warn('You need to set the `src` property', this);
 			}
 
-			const src = this.queryParamName ? this.src : this.src + this.query;
+			// const src = this.queryParamName ? this.src : this.src + this.query;
 			
-			const params = Object.assign({}, this.params, this.queryParamName ? Object.assign({ [this.queryParamName]: this.query }, this.data) : this.data);
+			// const params = Object.assign({}, this.params, this.queryParamName ? Object.assign({ [this.queryParamName]: this.query }, this.data) : this.data);
 			
 
 			let cancel = new Promise((resolve) => this.cancel = resolve);
-			let request = fetch(`${src}?${ this.toQuery(params) }`);
+			// let request = fetch(`${src}?${ this.toQuery(params) }`);
+
+			if(fuzzy) {
+				this.query = this.query.split(' ').map(a => a && a.slice(-1) !== '~' ? a + '~' : a).join(' ');
+			}
+
+			
+			let query = `${this.ufSigla ? `UF_SIGLA:${this.ufSigla} AND` : ''} ${this.localidade ? `LOCALIDADE:"${this.localidade}" AND` : ''} ${this.query}*`;
+			let params = {
+				'query': {
+					'query_string':  {
+						'fields' : ['LOGRADOURO', 'TIPO_LOGRADOURO'],
+						query
+					}
+				},
+				sort: [
+					'_score',
+					'_id'
+				]
+			};
+
+			let request = fetch(this.src, {
+				method: 'POST',
+				body: JSON.stringify(params),
+				headers: new Headers({
+					'Content-Type': 'application/json'
+				})
+			});
 
 			return Promise.race([cancel, request]);
 		},
@@ -108,7 +134,9 @@ export default {
 		},
 
 		down () {
-			if (this.current < this.items.length - 1) {
+			if (this.items.length === 0 ) {
+				this.update();
+			} else if (this.current < this.items.length - 1) {
 				this.current++;
 			} else {
 				this.current = -1;
